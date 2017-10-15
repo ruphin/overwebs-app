@@ -17,7 +17,7 @@
   },
   "dependencies": {
     "gluonjs": "^2.0.0-preview.4",
-    "gluonjs-router": "^0.0.1",
+    "gluon-router": "^0.0.3",
     "overwebs-background": "^0.0.1",
     "overwebs-background-data": "^0.0.4",
     "overwebs-main-page": "^0.0.2",

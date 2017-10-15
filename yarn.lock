@@ -1312,9 +1312,9 @@ glogg@^1.0.0:
   dependencies:
     sparkles "^1.0.0"
 
-gluonjs-router@^0.0.1:
-  version "0.0.1"
-  resolved "https://registry.yarnpkg.com/gluonjs-router/-/gluonjs-router-0.0.1.tgz#31c59a86970f437856f880c955e6884d6458f09a"
+gluon-router@^0.0.3:
+  version "0.0.3"
+  resolved "https://registry.yarnpkg.com/gluon-router/-/gluon-router-0.0.3.tgz#014db10dd1df44f2e683d757c73490760ca1d691"
 
 gluonjs@^2.0.0-preview.3, gluonjs@^2.0.0-preview.4:
   version "2.0.0-preview.4"

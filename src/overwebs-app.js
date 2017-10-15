@@ -1,5 +1,5 @@
 import { GluonElement, html } from '../gluonjs/gluon.js';
-import { onRouteChange, resolveURL } from '../gluonjs-router/gluon-router.js';
+import { onRouteChange, resolveURL } from '../gluon-router/gluon-router.js';
 import '../overwebs-main-page/overwebs-main-page.js';
 import '../overwebs-login-page/overwebs-login-page.js';
 import '../overwebs-play-page/overwebs-play-page.js';
