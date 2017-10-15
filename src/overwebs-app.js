@@ -1,6 +1,8 @@
 import { GluonElement, html } from '../gluonjs/gluon.js';
 import { onRouteChange, resolveURL } from '../gluonjs-router/gluon-router.js';
 import '../overwebs-main-page/overwebs-main-page.js';
+import '../overwebs-login-page/overwebs-login-page.js';
+import '../overwebs-play-page/overwebs-play-page.js';
 import '../overwebs-background-data/overwebs-background-data.js';
 import '../overwebs-background/overwebs-background.js';
 
@@ -16,10 +18,11 @@ let _mobile;
     );
 })(navigator.userAgent || navigator.vendor || window.opera);
 
+if (_mobile) {
+  document.documentElement.style.setProperty(`--overwebs-window-size`, `1660px`);
+}
+
 const playerStub = {
-  name: 'Ruphin',
-  level: 142,
-  avatar: '0x02500000000008E8',
   unlocks: {
     ana: 12,
     bastion: 47,
@@ -68,6 +71,7 @@ class OverwebsApp extends GluonElement {
       }
 
       #exit {
+        display: block;
         position: relative;
         height: 100vh;
         width: 100vw;
@@ -79,8 +83,8 @@ class OverwebsApp extends GluonElement {
 
     <div id="pages">
       <a href="/" route="exit" id="exit"></a>
-      <overwebs-login-page id="loginpage" route="login"></overwebs-login-page>
-      <overwebs-main-page route="main" background-selection="[[backgroundSelection]]"></overwebs-main-page>
+      <overwebs-login-page id="loginPage" route="login"></overwebs-login-page>
+      <overwebs-main-page id="mainPage" route="main"></overwebs-main-page>
       <overwebs-gallery-page route="hero-gallery"></overwebs-gallery-page>
       <overwebs-play-page route="play"></overwebs-play-page>
       <overwebs-competitive-page route="competitive"></overwebs-competitive-page>
@@ -98,7 +102,7 @@ class OverwebsApp extends GluonElement {
 
     <overwebs-queue-manager id='queue-manager'></overwebs-queue-manager>
 
-    <overwebs-player-data id="playerdata"></overwebs-player-data>
+    <overwebs-player-data id="playerData"></overwebs-player-data>
     <overwebs-chat-widget id="chat" tabindex="-1" firebase="[[firebase]]" player-data="[[playerData]]"></overwebs-chat-widget>
     `;
   }
@@ -123,11 +127,10 @@ class OverwebsApp extends GluonElement {
   connectedCallback() {
     super.connectedCallback();
 
-    this.$.playerdata.player = playerStub;
+    this.$.playerData.player = playerStub;
 
     onRouteChange((path, query, hash) => {
-      console.log(`PATH: '${path}'  QUERY: '${query}'  HASH: '${hash}'`);
-      // Some browsers call `_routeChanged` before `ready`.
+      // Some browsers call `onRouteChange` before `ready`.
       // If this happens, `this._routes` is still empty.
       // In that case, simply defer the call to `_routeChanged`.
       // if (Object.keys(this._routes).length === 0) {
@@ -136,26 +139,29 @@ class OverwebsApp extends GluonElement {
       // }
 
       // I'm not sure if this belongs here. Maybe I need to extract the logic for this somehow and expose an API
-      if (query.match(/background=/)) {
-        this.$.backgroundData.select = newRoute.__queryParams.background; // USE QUERY
+      const backgroundChange = query.match(/background=([^\?]*)/);
+      if (backgroundChange) {
+        this.$.backgroundData.select = backgroundChange[1]; // TODO: USE QUERY
         window.history.replaceState({}, null, '/main');
         window.dispatchEvent(new Event('location-changed'));
+        return;
       }
 
       // Remove initial '/' in the route path
-      const oldPath = this._oldPath && this._oldPath.slice(1);
+      const oldPath = this._oldPath;
       const newPath = path.slice(1);
-
-      // Wait for the login to resolve
-      if (!this.loggedIn && newPath != 'login') {
-        // Show the loading background? Maybe this needs to be done elsewhere
-        this.$.background.page = 'login';
-        return;
-      }
+      this._oldPath = newPath;
 
       // Hide the old page
       if (this._routes[oldPath]) {
         this._routes[oldPath].classList.remove('visible');
+      }
+
+      // Redirect to login if we are not logged in
+      if (!this.loggedIn && newPath != 'login') {
+        window.history.replaceState({}, null, '/login');
+        window.dispatchEvent(new Event('location-changed'));
+        return;
       }
 
       // Show the new page
@@ -195,6 +201,13 @@ class OverwebsApp extends GluonElement {
         //   window.history.back();
         // });
       }
+
+      if (newPath === 'exit') {
+        document.cookie = 'userName=;expires=Thu, 01 Jan 1970 00:00:01 GMT;';
+        document.cookie = 'battleTag=;expires=Thu, 01 Jan 1970 00:00:01 GMT;';
+        document.cookie = 'anonymous=;expires=Thu, 01 Jan 1970 00:00:01 GMT;';
+        this.loggedIn = false;
+      }
     });
 
     Array.prototype.map.call(this.$.pages.children, page => {
@@ -204,74 +217,73 @@ class OverwebsApp extends GluonElement {
       this.$.background.lowBandwidth = true;
     }
 
-    // Check if this user has previously logged in by checking firebaseID in the cookie.
-    let userID = document.cookie.replace(/(?:(?:^|.*;\s*)userID\s*\=\s*([^;]*).*$)|^.*$/, '$1');
-    if (userID) {
-      // This user already has a login. Signin with this existing login.
-      let password = userID + '000000'.slice(userID.length);
-      firebase
-        .auth()
-        .signInWithEmailAndPassword(`${userID}@ruph.in`, password)
-        .then(e => {
-          this.$.playerdata.login = { userID: userID, uid: e.uid };
-          this.loggedIn = true;
-          window.history.replaceState({}, null, '/main');
-          window.dispatchEvent(new CustomEvent('location-changed'));
-        })
-        .catch(e => {
-          console.log(e);
-        }); // Log error
+    // Check if this user has previously logged in by checking cookies
+    const anonymous = document.cookie.replace(/(?:(?:^|.*;\s*)anonymous\s*\=\s*([^;]*).*$)|^.*$/, '$1');
+    if (anonymous) {
+      // If the user logged in as anonymous, perform anonymous login
+      this._login(null, null, anonymous);
     } else {
-      // Redirect to login page
-      window.history.replaceState({}, null, '/login');
-      window.dispatchEvent(new CustomEvent('location-changed'));
+      const userName = document.cookie.replace(/(?:(?:^|.*;\s*)userName\s*\=\s*([^;]*).*$)|^.*$/, '$1');
+      // If the user logged in with a userName, perform login with userName and battleTag
+      if (userName) {
+        const battleTag = document.cookie.replace(/(?:(?:^|.*;\s*)battleTag\s*\=\s*([^;]*).*$)|^.*$/, '$1');
+        this._login(userName, battleTag, false);
+      } else {
+        // Otherwise, redirect to login page
+        window.history.replaceState({}, null, '/login');
+        window.dispatchEvent(new Event('location-changed'));
+      }
     }
 
-    this.$.loginpage.addEventListener('login', e => this._login(e), true);
+    // Listen to login events from the loginPage
+    this.$.loginPage.addEventListener(
+      'login',
+      e => {
+        const login = e.detail;
+        if (login.anonymous) {
+          document.cookie = `anonymous=true`;
+        } else {
+          document.cookie = `userName=${login.userName}`;
+          if (login.battleTag) {
+            document.cookie = `battleTag=${login.battleTag}`;
+          }
+        }
+        this._login(login.userName, login.battleTag, login.anonymous);
+      },
+      true
+    );
+
     this.$.background.backgrounds = this.$.backgroundData.backgrounds;
+    this.$.backgroundData.addEventListener('backgrounds-changed', () => (this.$.background.backgrounds = this.$.backgroundData.backgrounds), true);
 
     this.addEventListener('notification', e => this._notification(e), true);
 
     this.addEventListener('queue', e => this._queue(e.detail.queueType), true);
   }
 
-  _queue(queueType) {
-    console.log(this.$['queue-manager']);
-    this.$['queue-manager'].queue(queueType);
-  }
-
-  _notification(e) {
-    this.$.notification.removeAttribute('hidden');
-    console.log(e.detail);
-    if (e.detail['title']) {
-      Polymer.dom(this.$['notification-title']).appendChild(e.detail['title']);
-    }
-    if (e.detail['message']) {
-      Polymer.dom(this.$['notification-message']).appendChild(e.detail['message']);
-    }
-    if (e.detail['button']) {
-      Polymer.dom(this.$['notification-button']).appendChild(e.detail['button']);
-    }
-  }
-
-  _login(e) {
-    e.preventDefault();
-
+  _login(userName, battleTag, anonymous) {
     let userID;
-    if (e.detail.anonymous) {
-      // Append some random alphanumerics for anonymous ID
-      userID = `Anonymous-${Math.random()
-        .toString(36)
-        .slice(2, -20)}`;
-    } else if (e.detail.battleTag) {
-      userID = `${e.detail.username}-${e.detail.battleTag}`;
+
+    if (anonymous) {
+      let anonymousTag = document.cookie.replace(/(?:(?:^|.*;\s*)anonymousTag\s*\=\s*([^;]*).*$)|^.*$/, '$1');
+      // Generate a persistent random tag for Anonymous logins
+      if (!anonymousTag) {
+        anonymousTag = Math.random()
+          .toString(36)
+          .slice(2, 8);
+        document.cookie = `anonymousTag=${anonymousTag}`;
+      }
+      userID = `Anonymous-${anonymousTag}`;
+    } else if (battleTag) {
+      userID = `${userName}-${battleTag}`;
     } else {
-      userID = `${e.detail.username}`;
+      userID = userName;
     }
 
-    // Pad the password with 0s
-    let password = userID + '000000'.slice(userID.length);
+    // Create a password equal to userID padded with 0s
+    const password = userID + '000000'.slice(userID.length);
 
+    // Log the user into firebase
     firebase
       .auth()
       .createUserWithEmailAndPassword(`${userID}@ruph.in`, password)
@@ -291,15 +303,61 @@ class OverwebsApp extends GluonElement {
         }
       })
       .then(e => {
-        e.updateProfile({ displayName: userID }).catch(e => {
+        console.info(`Logged in as ${userID}`);
+        e.updateProfile({ displayName: userID.replace('-', '#') }).catch(e => {
           console.warn('Failed to add DisplayName');
         });
-        document.cookie = `userID=${userID}`;
-        this.$.playerdata.login = { userID: userID, uid: e.uid };
-        this.loggedIn = true;
-        window.history.replaceState({}, null, '/main');
-        window.dispatchEvent(new Event('location-changed'));
+      })
+      .catch(e => {
+        console.warn('Firebase login failed');
+        console.warn(e);
       });
+
+    // Set correct level and avatar for provided user
+    new Promise((resolve, reject) => {
+      // If the user is not anonymous and has a battleTag, we look up their stats.
+      if (!anonymous && battleTag) {
+        resolve();
+      } else {
+        // Otherwise fall back to random
+        reject();
+      }
+    })
+      .then(() => fetch(`https://owapi.net/api/v3/u/${userName}-${battleTag}/stats`))
+      .then(response => response.json())
+      .then(json => {
+        const account = json.any || json.eu || json.us || json.kr;
+        const stats = account.stats.quickplay.overall_stats;
+        this.$.playerData.level = stats.prestige * 100 + stats.level;
+        this.$.playerData.avatar = stats.avatar;
+      })
+      .catch(e => {
+        // If anything fails, use a random level and avatar
+        this.$.playerData.level = Math.ceil(Math.random() * 400);
+        // TODO: Random avatar
+      });
+
+    this.loggedIn = true;
+    window.history.replaceState({}, null, '/main');
+    window.dispatchEvent(new Event('location-changed'));
+  }
+
+  _queue(queueType) {
+    console.log(this.$['queue-manager']);
+    this.$['queue-manager'].queue(queueType);
+  }
+
+  _notification(e) {
+    this.$.notification.removeAttribute('hidden');
+    if (e.detail['title']) {
+      Polymer.dom(this.$['notification-title']).appendChild(e.detail['title']);
+    }
+    if (e.detail['message']) {
+      Polymer.dom(this.$['notification-message']).appendChild(e.detail['message']);
+    }
+    if (e.detail['button']) {
+      Polymer.dom(this.$['notification-button']).appendChild(e.detail['button']);
+    }
   }
 }
 

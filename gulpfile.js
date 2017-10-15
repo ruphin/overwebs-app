@@ -3,6 +3,7 @@ const path = require('path');
 const babel = require('gulp-babel');
 const browserSync = require('browser-sync');
 const sourcemaps = require('gulp-sourcemaps');
+const historyApiFallback = require('connect-history-api-fallback');
 
 const SOURCE = 'src';
 const source = function(...subpaths) {
@@ -27,7 +28,8 @@ gulp.task('serve', function() {
     },
     server: {
       baseDir: ['', 'node_modules']
-    }
+    },
+    middleware: [historyApiFallback()]
   });
 
   gulp.watch(source('*'), browserSync.reload);
