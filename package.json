@@ -13,7 +13,8 @@
     "browser-sync": "^2.18.13",
     "gulp": "^3.9.1",
     "gulp-babel": "^7.0.0",
-    "gulp-sourcemaps": "^2.6.1"
+    "gulp-sourcemaps": "^2.6.1",
+    "gulp-replace": "^0.6.1"
   },
   "dependencies": {
     "gluonjs": "^2.0.0-preview.4",

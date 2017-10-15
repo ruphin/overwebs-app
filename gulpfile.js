@@ -1,5 +1,6 @@
 const gulp = require('gulp');
 const path = require('path');
+const replace = require('gulp-replace');
 const babel = require('gulp-babel');
 const browserSync = require('browser-sync');
 const sourcemaps = require('gulp-sourcemaps');
@@ -46,4 +47,9 @@ gulp.task('default', function(cb) {
     .pipe(babel({ presets: ['minify'] }))
     .pipe(sourcemaps.write('.'))
     .pipe(gulp.dest('.'));
+  gulp
+    .src('index.html')
+    .pipe(replace('/src/overwebs-app.js', '/node_modules/overwebs-app/overwebs-app.js'))
+    .pipe(replace('<span id="browser-sync-binding"></span>', ''))
+    .pipe(gulp.dest('dist/'));
 });
