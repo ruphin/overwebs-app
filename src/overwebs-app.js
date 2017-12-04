@@ -19,7 +19,7 @@ let _mobile;
 })(navigator.userAgent || navigator.vendor || window.opera);
 
 if (_mobile) {
-  document.documentElement.style.setProperty(`--overwebs-window-size`, `1660px`);
+  document.documentElement.style.setProperty(`--overwebs-window-size`, `1620px`);
 }
 
 const playerStub = {
@@ -50,7 +50,7 @@ const playerStub = {
   }
 };
 
-class OverwebsApp extends GluonElement {
+export class OverwebsApp extends GluonElement {
   get template() {
     return html`
     <style>
@@ -58,14 +58,15 @@ class OverwebsApp extends GluonElement {
         display: block;
         position: relative;
         background: black;
-        overflow: hidden;
-        min-height: 100vh;
       }
 
       #chat[hidden] {
         display: none;
       }
 
+      #pages > * {
+        min-height: 100vh;
+      }
       #pages > *:not(.visible) {
         display: none;
       }
@@ -77,12 +78,19 @@ class OverwebsApp extends GluonElement {
         width: 100vw;
         background: black;
       }
+      .loading {
+        display: block;
+        position: relative;
+        height: 100vh;
+        width: 100vw;
+        background: red;
+      }
     </style>
     <overwebs-background-data id="backgroundData"></overwebs-background-data>
     <overwebs-background id="background"></overwebs-background>
 
     <div id="pages">
-      <a href="/" route="exit" id="exit"></a>
+      <a href="/login" route="exit" id="exit"></a>
       <overwebs-login-page id="loginPage" route="login"></overwebs-login-page>
       <overwebs-main-page id="mainPage" route="main"></overwebs-main-page>
       <overwebs-gallery-page route="hero-gallery"></overwebs-gallery-page>
@@ -91,7 +99,7 @@ class OverwebsApp extends GluonElement {
       <overwebs-arcade-page route="arcade"></overwebs-arcade-page>
       <overwebs-training-page route="training"></overwebs-training-page>
       <overwebs-vs-ai-page route="vs-ai"></overwebs-vs-ai-page>
-      <div class="loading" route="loading"></div>
+      <div class="loading visible" route="loading"></div>
     </div>
 
     <overwebs-notification id="notification" spinner hidden>
@@ -110,7 +118,7 @@ class OverwebsApp extends GluonElement {
     super();
     // TODO: Remember the initial route so we can redirect there after the loading redirect
 
-    var config = {
+    const config = {
       apiKey: 'AIzaSyD-FCqLAtCYYCitKmErFWT2xEQyHk7fhBU',
       authDomain: 'overwebs-86c53.firebaseapp.com',
       databaseURL: 'https://overwebs-86c53.firebaseio.com'
@@ -118,8 +126,10 @@ class OverwebsApp extends GluonElement {
     firebase.initializeApp(config);
 
     this._routes = {};
+    this.loginStatus = {};
 
     // At initial boot, redirect to loading screen
+    this._oldPath = 'loading';
     window.history.replaceState({}, null, '/loading');
     window.dispatchEvent(new Event('location-changed'));
   }
@@ -158,7 +168,7 @@ class OverwebsApp extends GluonElement {
       }
 
       // Redirect to login if we are not logged in
-      if (!this.loggedIn && newPath != 'login') {
+      if (!(this.loginStatus.firebase && this.loginStatus.battlenet) && newPath != 'login') {
         window.history.replaceState({}, null, '/login');
         window.dispatchEvent(new Event('location-changed'));
         return;
@@ -206,7 +216,7 @@ class OverwebsApp extends GluonElement {
         document.cookie = 'userName=;expires=Thu, 01 Jan 1970 00:00:01 GMT;';
         document.cookie = 'battleTag=;expires=Thu, 01 Jan 1970 00:00:01 GMT;';
         document.cookie = 'anonymous=;expires=Thu, 01 Jan 1970 00:00:01 GMT;';
-        this.loggedIn = false;
+        this.loginStatus = {};
       }
     });
 
@@ -252,6 +262,7 @@ class OverwebsApp extends GluonElement {
       },
       true
     );
+    this.$.loginPage.addEventListener('cancelLogin', this._cancelLogin);
 
     this.$.background.backgrounds = this.$.backgroundData.backgrounds;
     this.$.backgroundData.addEventListener('backgrounds-changed', () => (this.$.background.backgrounds = this.$.backgroundData.backgrounds), true);
@@ -263,83 +274,101 @@ class OverwebsApp extends GluonElement {
 
   _login(userName, battleTag, anonymous) {
     let userID;
+    let firebaseLogin;
+    let battlenetLogin;
+    // TODO: Start loading spinner state
+    this.$.loginPage.setAttribute('logging-in', '');
+    this.$.playerData.name = userName;
 
-    if (anonymous) {
-      let anonymousTag = document.cookie.replace(/(?:(?:^|.*;\s*)anonymousTag\s*\=\s*([^;]*).*$)|^.*$/, '$1');
-      // Generate a persistent random tag for Anonymous logins
-      if (!anonymousTag) {
-        anonymousTag = Math.random()
-          .toString(36)
-          .slice(2, 8);
-        document.cookie = `anonymousTag=${anonymousTag}`;
-      }
-      userID = `Anonymous-${anonymousTag}`;
-    } else if (battleTag) {
-      userID = `${userName}-${battleTag}`;
+    if (this.loginStatus.firebase) {
+      firebaseLogin = Promise.resolve();
     } else {
-      userID = userName;
+      if (anonymous) {
+        let anonymousTag = document.cookie.replace(/(?:(?:^|.*;\s*)anonymousTag\s*\=\s*([^;]*).*$)|^.*$/, '$1');
+        // Generate a persistent random tag for Anonymous logins
+        if (!anonymousTag) {
+          anonymousTag = Math.random()
+            .toString(36)
+            .slice(2, 8);
+          document.cookie = `anonymousTag=${anonymousTag}`;
+        }
+        userID = `Anonymous-${anonymousTag}`;
+      } else if (battleTag) {
+        userID = `${userName}-${battleTag}`;
+      } else {
+        userID = userName;
+      }
+
+      // Create a password equal to userID padded with 0s
+      const password = userID + '000000'.slice(userID.length);
+
+      // Log the user into firebase
+      firebaseLogin = firebase
+        .auth()
+        .createUserWithEmailAndPassword(`${userID}@ruph.in`, password)
+        .then(e => {
+          // If a new user is created, push the userID
+          // onto the database message list so we know who's who
+          firebase
+            .database()
+            .ref(`messages/${e.uid}`)
+            .push(userID);
+          return e;
+        })
+        .catch(e => {
+          // If the user already logged in before, just log in directly
+          if (e.code == 'auth/email-already-in-use') {
+            return firebase.auth().signInWithEmailAndPassword(`${userID}@ruph.in`, password);
+          } else {
+            throw e;
+          }
+        })
+        .then(e => {
+          e.updateProfile({ displayName: userID.replace('-', '#') }).catch(e => {
+            console.warn('Failed to add DisplayName');
+          });
+          this.loginStatus.firebase = true;
+          return true;
+        });
     }
 
-    // Create a password equal to userID padded with 0s
-    const password = userID + '000000'.slice(userID.length);
-
-    // Log the user into firebase
-    firebase
-      .auth()
-      .createUserWithEmailAndPassword(`${userID}@ruph.in`, password)
-      .then(e => {
-        // If a new user is created, push the userID
-        // onto the database message list so we know who's who
-        firebase
-          .database()
-          .ref(`messages/${e.uid}`)
-          .push(userID);
-        return e;
-      })
-      .catch(e => {
-        // If the user already logged in before, just log in directly
-        if (e.code == 'auth/email-already-in-use') {
-          return firebase.auth().signInWithEmailAndPassword(`${userID}@ruph.in`, password);
-        }
-      })
-      .then(e => {
-        console.info(`Logged in as ${userID}`);
-        e.updateProfile({ displayName: userID.replace('-', '#') }).catch(e => {
-          console.warn('Failed to add DisplayName');
+    if (!anonymous && battleTag) {
+      battlenetLogin = new Promise((resolve, reject) => {
+        this._cancelLogin = reject;
+        const timer = setTimeout(reject, 5000);
+        const query = fetch(`https://owapi.net/api/v3/u/${userName}-${battleTag}/stats`);
+        query.then(response => {
+          clearTimeout(timer);
+          resolve(response);
         });
       })
-      .catch(e => {
-        console.warn('Firebase login failed');
-        console.warn(e);
-      });
+        .then(response => response.json())
+        .then(json => {
+          const account = json.any || json.eu || json.us || json.kr;
+          const stats = account.stats.quickplay.overall_stats;
+          this.$.playerData.level = stats.prestige * 100 + stats.level;
+          this.$.playerData.avatar = stats.avatar;
+          this.loginStatus.battlenet = true;
+        });
+    } else {
+      battlenetLogin = Promise.resolve();
+      this.$.playerData.level = Math.ceil(Math.random() * 1800);
+      this.$.playerData.avatar = '0x02500000000002F7';
+      this.loginStatus.battlenet = true;
+    }
 
-    // Set correct level and avatar for provided user
-    new Promise((resolve, reject) => {
-      // If the user is not anonymous and has a battleTag, we look up their stats.
-      if (!anonymous && battleTag) {
-        resolve();
-      } else {
-        // Otherwise fall back to random
-        reject();
-      }
-    })
-      .then(() => fetch(`https://owapi.net/api/v3/u/${userName}-${battleTag}/stats`))
-      .then(response => response.json())
-      .then(json => {
-        const account = json.any || json.eu || json.us || json.kr;
-        const stats = account.stats.quickplay.overall_stats;
-        this.$.playerData.level = stats.prestige * 100 + stats.level;
-        this.$.playerData.avatar = stats.avatar;
+    Promise.all([firebaseLogin, battlenetLogin])
+      .then(() => {
+        this.$.loginPage.removeAttribute('logging-in');
+        window.history.replaceState({}, null, '/main');
+        window.dispatchEvent(new Event('location-changed'));
       })
       .catch(e => {
-        // If anything fails, use a random level and avatar
-        this.$.playerData.level = Math.ceil(Math.random() * 400);
-        // TODO: Random avatar
+        this.$.loginPage.removeAttribute('logging-in');
+        console.log(e);
+        window.history.replaceState({}, null, '/login');
+        window.dispatchEvent(new Event('location-changed'));
       });
-
-    this.loggedIn = true;
-    window.history.replaceState({}, null, '/main');
-    window.dispatchEvent(new Event('location-changed'));
   }
 
   _queue(queueType) {

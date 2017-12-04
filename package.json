@@ -7,23 +7,21 @@
   "author": "Goffert van Gool",
   "license": "MIT",
   "devDependencies": {
-    "babel-core": "^6.26.0",
-    "babel-preset-minify": "^0.2.0",
     "connect-history-api-fallback": "^1.3.0",
     "browser-sync": "^2.18.13",
     "gulp": "^3.9.1",
-    "gulp-babel": "^7.0.0",
     "gulp-sourcemaps": "^2.6.1",
-    "gulp-replace": "^0.6.1"
+    "gulp-replace": "^0.6.1",
+    "gulp-uglify-es": "^0.1.4"
   },
   "dependencies": {
-    "gluonjs": "^2.0.0-preview.4",
+    "gluonjs": "^2.0.2",
     "gluon-router": "^0.0.3",
-    "overwebs-background": "^0.0.1",
-    "overwebs-background-data": "^0.0.4",
-    "overwebs-main-page": "^0.0.2",
-    "overwebs-login-page": "^0.0.2",
-    "overwebs-play-page": "^0.0.1"
+    "overwebs-background": "^1.0.0",
+    "overwebs-background-data": "^1.0.0",
+    "overwebs-main-page": "^1.0.0",
+    "overwebs-login-page": "^1.0.0",
+    "overwebs-play-page": "^1.0.0"
   },
   "scripts": {
     "build": "gulp",
