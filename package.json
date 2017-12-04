@@ -1,26 +1,26 @@
 {
   "name": "overwebs-app",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "The Overwebs App",
   "main": "overwebs-app.js",
   "repository": "git@github.com:ruphin/overwebs-app.git",
   "author": "Goffert van Gool",
   "license": "MIT",
   "devDependencies": {
-    "connect-history-api-fallback": "^1.3.0",
     "browser-sync": "^2.18.13",
+    "connect-history-api-fallback": "^1.3.0",
     "gulp": "^3.9.1",
-    "gulp-sourcemaps": "^2.6.1",
     "gulp-replace": "^0.6.1",
+    "gulp-sourcemaps": "^2.6.1",
     "gulp-uglify-es": "^0.1.4"
   },
   "dependencies": {
-    "gluonjs": "^2.0.2",
     "gluon-router": "^0.0.3",
+    "gluonjs": "^2.0.2",
     "overwebs-background": "^1.0.0",
     "overwebs-background-data": "^1.0.0",
-    "overwebs-main-page": "^1.0.0",
     "overwebs-login-page": "^1.0.0",
+    "overwebs-main-page": "^1.0.0",
     "overwebs-play-page": "^1.0.0"
   },
   "scripts": {
