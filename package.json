@@ -24,8 +24,10 @@
     "overwebs-play-page": "^1.0.0"
   },
   "scripts": {
-    "build": "gulp",
-    "dev": "gulp serve",
-    "publish": "git add overwebs-app.js"
+    "build": "rollup -c",
+    "dev": "browser-sync start --config browsersync.config.js",
+    "release": "np",
+    "version": "npm run build",
+    "test": "mocha"
   }
 }
