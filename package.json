@@ -2,17 +2,19 @@
   "name": "overwebs-app",
   "version": "0.0.2",
   "description": "The Overwebs App",
+  "type": "module",
   "main": "overwebs-app.js",
   "repository": "git@github.com:ruphin/overwebs-app.git",
   "author": "Goffert van Gool",
   "license": "MIT",
-  "devDependencies": {
-    "browser-sync": "^2.18.13",
-    "connect-history-api-fallback": "^1.3.0",
-    "gulp": "^3.9.1",
-    "gulp-replace": "^0.6.1",
-    "gulp-sourcemaps": "^2.6.1",
-    "gulp-uglify-es": "^0.1.4"
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build --mode lib && vite build",
+    "preview": "vite preview",
+    "test": "vitest run --passWithNoTests",
+    "release": "npx np",
+    "version": "npm run build",
+    "prepublishOnly": "npm run build"
   },
   "dependencies": {
     "gluon-router": "^0.0.3",
@@ -23,11 +25,8 @@
     "overwebs-main-page": "^1.0.0",
     "overwebs-play-page": "^1.0.0"
   },
-  "scripts": {
-    "build": "rollup -c",
-    "dev": "browser-sync start --config browsersync.config.js",
-    "release": "np",
-    "version": "npm run build",
-    "test": "mocha"
+  "devDependencies": {
+    "vite": "^8.3.3",
+    "vitest": "^5.0.3"
   }
 }

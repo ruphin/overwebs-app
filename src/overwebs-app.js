@@ -1,10 +1,10 @@
-import { GluonElement, html } from '../gluonjs/gluon.js';
-import { onRouteChange, resolveURL } from '../gluon-router/gluon-router.js';
-import '../overwebs-main-page/overwebs-main-page.js';
-import '../overwebs-login-page/overwebs-login-page.js';
-import '../overwebs-play-page/overwebs-play-page.js';
-import '../overwebs-background-data/overwebs-background-data.js';
-import '../overwebs-background/overwebs-background.js';
+import { GluonElement, html } from 'gluonjs/gluon.js';
+import { onRouteChange, resolveURL } from 'gluon-router/gluon-router.js';
+import 'overwebs-main-page/overwebs-main-page.js';
+import 'overwebs-login-page/overwebs-login-page.js';
+import 'overwebs-play-page/overwebs-play-page.js';
+import 'overwebs-background-data/overwebs-background-data.js';
+import 'overwebs-background/overwebs-background.js';
 
 // Test for mobile agents
 let _mobile;
